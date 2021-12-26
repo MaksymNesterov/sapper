@@ -1,9 +1,10 @@
 import type { NextPage } from "next";
 import Head from "next/head";
 import { Cell, GameContainer, Main, NumberCell, MenuBlock } from "../styles/styled";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { CellT, NumbersMap } from "../types/index";
 import BombIcon from "../assets/bomb.svg";
+import FlagIcon from "../assets/flag.svg";
 
 const RESOLUTION = 16;
 
@@ -43,6 +44,7 @@ const getInitialCells = (): CellT[][] => {
         id: count,
         x: j,
         y: i,
+        flaged: false,
         visible: false,
         content: null,
       };
@@ -54,7 +56,10 @@ const getInitialCells = (): CellT[][] => {
   return result;
 };
 
-const cellContent = (content: null | number | "bomb") => {
+const cellContent = (content: null | number | "bomb", flaged?: boolean) => {
+  if (flaged) {
+    return <FlagIcon />;
+  }
   if (content === "bomb") {
     return <BombIcon />;
   }
@@ -178,14 +183,54 @@ const renderEmptyIsland = (cells: CellT[][], y: number, x: number) => {
   return cells;
 };
 
+const winCheck = (cells: CellT[][]): boolean => {
+  for (let i = 0; i < RESOLUTION; i++) {
+    for (let j = 0; j < RESOLUTION; j++) {
+      if (cells[i][j].visible === false) {
+        return false
+      }
+    }
+  }
+  return true
+}
+
 /////////
 
 const Home: NextPage = () => {
   const [cells, setCells] = useState<CellT[][]>(getInitialCells());
+  const [flags, setFlags] = useState<number>(RESOLUTION * 2)
   const [score, setScore] = useState<number>(0);
+  const [isGameFinished, setIsGameFinished] = useState(false)
   const [isFirstTurn, setIsFirstTurn] = useState(true);
 
+  useEffect(() => {
+    if (winCheck(cells)) {
+      setIsGameFinished(true)
+      alert('You won')
+    }
+  }, [cells])
+
+  const handlePlaceFlag = (cell: CellT, event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+    event.preventDefault()
+    const {x, y, flaged} = cell;
+    let newCells = [...cells];
+
+    if (flaged) {
+      newCells[y][x] = { ...newCells[y][x], flaged: false, visible: false };
+      setFlags(flags + 1)
+    } else if (!flaged && flags > 0) {
+      newCells[y][x] = { ...newCells[y][x], flaged: true, visible: true };
+      setFlags(flags - 1)
+    }
+
+    setCells(newCells)
+  }
+
   const handleClick = (cell: CellT) => {
+    if (cell.flaged) {
+      return
+    }
+
     if (isFirstTurn) {
       setCells(setGameField(cell, cells));
       setIsFirstTurn(false);
@@ -195,6 +240,7 @@ const Home: NextPage = () => {
 
     if (cell.content === "bomb") {
       setCells(gameOver(cells));
+      setIsGameFinished(true)
       setScore(0);
     }
 
@@ -214,6 +260,8 @@ const Home: NextPage = () => {
   const handleRestart = () => {
     setCells(getInitialCells());
     setIsFirstTurn(true);
+    setIsGameFinished(false)
+    setFlags(RESOLUTION * 2)
     setScore(0);
   };
 
@@ -230,19 +278,20 @@ const Home: NextPage = () => {
         <MenuBlock>
           <h2>Score: {score}</h2>
           <button onClick={handleRestart}>restart</button>
-          <h2>Score: {score}</h2>
+          <h2>Flags: {flags}</h2>
         </MenuBlock>
 
-        <GameContainer resolution={RESOLUTION}>
+        <GameContainer isGameFinished={isGameFinished} resolution={RESOLUTION}>
           {cells.map((row) =>
             row.map((cell) => (
               <Cell
                 visible={cell.visible}
                 disabled={cell.visible}
                 onClick={() => handleClick(cell)}
+                onContextMenu={event => handlePlaceFlag(cell, event)}
                 key={cell.id}
               >
-                {cell.visible && cellContent(cell.content)}
+                {cell.visible && cellContent(cell.content, cell.flaged)}
               </Cell>
             ))
           )}

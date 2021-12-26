@@ -5,18 +5,17 @@ export const Main = styled.main`
     justify-content: center;
     align-items: center;
     flex-direction: column;
-    height: 100vh;
-    width: 100vw;
 `
 
-export const GameContainer = styled.div<{resolution: number}>`
-    width: 1000px;
-    height: 1000px;
+export const GameContainer = styled.div<{resolution: number, isGameFinished: boolean}>`
+    width: 600px;
+    height: 600px;
     display: grid;
     grid-template-columns: ${({resolution}) => `repeat(${resolution}, 1fr)`};
     grid-template-rows: ${({resolution}) => `repeat(${resolution}, 1fr)`};
     column-gap: 1px;
     grid-row-gap: 1px;
+    pointer-events: ${({isGameFinished}) => isGameFinished ? 'none' : 'all'};
 `
 
 export const Cell = styled.button<{visible: boolean}>`
@@ -27,7 +26,7 @@ export const Cell = styled.button<{visible: boolean}>`
 export const NumberCell = styled.a<{color: string}>`
     color: ${({color}) => color};
     font-weight: bold;
-    font-size: 30px;
+    font-size: large;
 `
 
 export const MenuBlock = styled.div`
