@@ -1,7 +1,7 @@
 import type { NextPage } from "next";
 import Head from "next/head";
-import { Cell, GameContainer, Main, NumberCell, MenuBlock } from "./styled";
-import React, { useCallback, useState } from "react";
+import { Cell, GameContainer, Main, NumberCell, MenuBlock } from "../styles/styled";
+import React, { useState } from "react";
 import { CellT, NumbersMap } from "../types/index";
 import BombIcon from "../assets/bomb.svg";
 
