@@ -1,8 +1,14 @@
 import type { NextPage } from "next";
 import Head from "next/head";
-import { Cell, GameContainer, Main, NumberCell, MenuBlock } from "../styles/styled";
+import {
+  Cell,
+  GameContainer,
+  Main,
+  NumberCell,
+  MenuBlock,
+} from "styles/styled";
 import React, { useEffect, useState } from "react";
-import { CellT, NumbersMap } from "../types/index";
+import { CellT, NumbersMap } from "types/index";
 import BombIcon from "../assets/bomb.svg";
 import FlagIcon from "../assets/flag.svg";
 
@@ -19,15 +25,15 @@ const LOOK_AROUND_MAP: { [key in number]: number[] } = {
   8: [1, 1],
 };
 
-const NUMBERS_MAP: NumbersMap = {
-  1: <NumberCell color="#ff0000">1</NumberCell>,
-  2: <NumberCell color="#ffa500">2</NumberCell>,
-  3: <NumberCell color="#ffff00">3</NumberCell>,
-  4: <NumberCell color="#008000">4</NumberCell>,
-  5: <NumberCell color="#0000ff">5</NumberCell>,
-  6: <NumberCell color="#4b0082">6</NumberCell>,
-  7: <NumberCell color="#ee82ee">7</NumberCell>,
-  8: <NumberCell color="black">8</NumberCell>,
+const NUMBERS_COLOR_MAP: NumbersMap = {
+  1: "#ff0000",
+  2: "#ffa500",
+  3: "#ffff00",
+  4: "#008000",
+  5: "#0000ff",
+  6: "#4b0082",
+  7: "#ee82ee",
+  8: "black",
 };
 
 ///////
@@ -64,7 +70,9 @@ const cellContent = (content: null | number | "bomb", flaged?: boolean) => {
     return <BombIcon />;
   }
   if (typeof content === "number") {
-    return NUMBERS_MAP[content];
+    return (
+      <NumberCell color={NUMBERS_COLOR_MAP[content]}>{content}</NumberCell>
+    );
   }
 };
 
@@ -120,8 +128,8 @@ const setGameField = (cell: CellT, initialField: CellT[][]) => {
     }
   }
 
-  if(result[cell.y][cell.x].content === null) {
-    return renderEmptyIsland(result, cell.y, cell.x)
+  if (result[cell.y][cell.x].content === null) {
+    return renderEmptyIsland(result, cell.y, cell.x);
   }
 
   return result;
@@ -164,13 +172,13 @@ const renderEmptyIsland = (cells: CellT[][], y: number, x: number) => {
               visible: true,
             };
           }
-  
+
           if (content === null) {
             cells[y + newY][x + newX] = {
               ...cells[y + newY][x + newX],
               visible: true,
             };
-  
+
             checkNearCells(y + newY, x + newX);
           }
         }
@@ -187,48 +195,51 @@ const winCheck = (cells: CellT[][]): boolean => {
   for (let i = 0; i < RESOLUTION; i++) {
     for (let j = 0; j < RESOLUTION; j++) {
       if (cells[i][j].visible === false) {
-        return false
+        return false;
       }
     }
   }
-  return true
-}
+  return true;
+};
 
 /////////
 
 const Home: NextPage = () => {
   const [cells, setCells] = useState<CellT[][]>(getInitialCells());
-  const [flags, setFlags] = useState<number>(RESOLUTION * 2)
+  const [flags, setFlags] = useState<number>(RESOLUTION * 2);
   const [score, setScore] = useState<number>(0);
-  const [isGameFinished, setIsGameFinished] = useState(false)
+  const [isGameFinished, setIsGameFinished] = useState(false);
   const [isFirstTurn, setIsFirstTurn] = useState(true);
 
   useEffect(() => {
     if (winCheck(cells)) {
-      setIsGameFinished(true)
-      alert('You won')
+      setIsGameFinished(true);
+      alert("You won");
     }
-  }, [cells])
+  }, [cells]);
 
-  const handlePlaceFlag = (cell: CellT, event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
-    event.preventDefault()
-    const {x, y, flaged} = cell;
+  const handlePlaceFlag = (
+    cell: CellT,
+    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
+  ) => {
+    event.preventDefault();
+    const { x, y, flaged } = cell;
     let newCells = [...cells];
 
     if (flaged) {
       newCells[y][x] = { ...newCells[y][x], flaged: false, visible: false };
-      setFlags(flags + 1)
+      setFlags(flags + 1);
     } else if (!flaged && flags > 0) {
       newCells[y][x] = { ...newCells[y][x], flaged: true, visible: true };
-      setFlags(flags - 1)
+      setFlags(flags - 1);
     }
 
-    setCells(newCells)
-  }
+    setCells(newCells);
+  };
 
   const handleClick = (cell: CellT) => {
     if (cell.flaged) {
-      return
+      return;
     }
 
     if (isFirstTurn) {
@@ -240,7 +251,7 @@ const Home: NextPage = () => {
 
     if (cell.content === "bomb") {
       setCells(gameOver(cells));
-      setIsGameFinished(true)
+      setIsGameFinished(true);
       setScore(0);
     }
 
@@ -260,11 +271,10 @@ const Home: NextPage = () => {
   const handleRestart = () => {
     setCells(getInitialCells());
     setIsFirstTurn(true);
-    setIsGameFinished(false)
-    setFlags(RESOLUTION * 2)
+    setIsGameFinished(false);
+    setFlags(RESOLUTION * 2);
     setScore(0);
   };
-
 
   return (
     <>
@@ -288,7 +298,7 @@ const Home: NextPage = () => {
                 visible={cell.visible}
                 disabled={cell.visible}
                 onClick={() => handleClick(cell)}
-                onContextMenu={event => handlePlaceFlag(cell, event)}
+                onContextMenu={(event) => handlePlaceFlag(cell, event)}
                 key={cell.id}
               >
                 {cell.visible && cellContent(cell.content, cell.flaged)}

@@ -9,4 +9,4 @@ export type CellT = {
     flaged: boolean,
   }
 
-export type NumbersMap = {[key in number]: ReactElement}
+export type NumbersMap = {[key in number]: string}
