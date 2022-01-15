@@ -5,11 +5,12 @@ export const Main = styled.main`
     justify-content: center;
     align-items: center;
     flex-direction: column;
+    height: 100vh;
 `
 
 export const GameContainer = styled.div<{resolution: number, isGameFinished: boolean}>`
-    width: 600px;
-    height: 600px;
+    width: 800px;
+    height: 800px;
     display: grid;
     grid-template-columns: ${({resolution}) => `repeat(${resolution}, 1fr)`};
     grid-template-rows: ${({resolution}) => `repeat(${resolution}, 1fr)`};

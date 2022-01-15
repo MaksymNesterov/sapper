@@ -1,215 +1,83 @@
 import type { NextPage } from "next";
 import Head from "next/head";
-import {
-  Cell,
-  GameContainer,
-  Main,
-  NumberCell,
-  MenuBlock,
-} from "styles/styled";
+import { Cell, GameContainer, Main, MenuBlock } from "styles/styled";
 import React, { useEffect, useState } from "react";
-import { CellT, NumbersMap } from "types/index";
-import BombIcon from "../assets/bomb.svg";
-import FlagIcon from "../assets/flag.svg";
+import { CellT } from "types/index";
+import { Socket } from "socket.io-client";
+import {
+  getInitialCells,
+  winCheck,
+  setGameField,
+  gameOver,
+  renderEmptyIsland,
+  cellContent,
+  InitSocketConnection,
+} from "utils";
+import { Stack } from "@mui/material";
+import { GetOnlineTokenModal } from "components/GetOnlineTokenModal.tsx";
+import { DefaultEventsMap } from "socket.io/dist/typed-events";
+import { StartOnlineGameModal } from "components/StartOnlineGameModal.tsx";
 
-const RESOLUTION = 16;
-
-const LOOK_AROUND_MAP: { [key in number]: number[] } = {
-  1: [-1, -1],
-  2: [-1, 0],
-  3: [-1, 1],
-  4: [0, -1],
-  5: [0, 1],
-  6: [1, -1],
-  7: [1, 0],
-  8: [1, 1],
-};
-
-const NUMBERS_COLOR_MAP: NumbersMap = {
-  1: "#ff0000",
-  2: "#ffa500",
-  3: "#ffff00",
-  4: "#008000",
-  5: "#0000ff",
-  6: "#4b0082",
-  7: "#ee82ee",
-  8: "black",
-};
-
-///////
-
-const getInitialCells = (): CellT[][] => {
-  const result: CellT[][] = [[]];
-  let count: number = 1;
-
-  for (let i = 0; i < RESOLUTION; i++) {
-    result[i] = [];
-
-    for (let j = 0; j < RESOLUTION; j++) {
-      result[i][j] = {
-        id: count,
-        x: j,
-        y: i,
-        flaged: false,
-        visible: false,
-        content: null,
-      };
-
-      count++;
-    }
-  }
-
-  return result;
-};
-
-const cellContent = (content: null | number | "bomb", flaged?: boolean) => {
-  if (flaged) {
-    return <FlagIcon />;
-  }
-  if (content === "bomb") {
-    return <BombIcon />;
-  }
-  if (typeof content === "number") {
-    return (
-      <NumberCell color={NUMBERS_COLOR_MAP[content]}>{content}</NumberCell>
-    );
-  }
-};
-
-const setGameField = (cell: CellT, initialField: CellT[][]) => {
-  const result: CellT[][] = [...initialField];
-  const cellWithBoms: { [key in number]: boolean } = {};
-
-  let bombsLeft = RESOLUTION * 2;
-
-  while (bombsLeft > 0) {
-    const value = Math.floor(Math.random() * (RESOLUTION * RESOLUTION)) + 1;
-    if (!cellWithBoms[value] && cell.id !== value) {
-      cellWithBoms[value] = true;
-      bombsLeft--;
-    }
-  }
-
-  for (let i = 0; i < RESOLUTION; i++) {
-    for (let j = 0; j < RESOLUTION; j++) {
-      const currentCell = result[i][j];
-
-      if (currentCell.id === cell.id) {
-        result[i][j] = { ...currentCell, visible: true };
-      }
-
-      if (cellWithBoms[currentCell.id]) {
-        result[i][j] = {
-          ...currentCell,
-          content: "bomb",
-        };
-
-        for (let k = 1; k < 9; k++) {
-          const [x, y] = LOOK_AROUND_MAP[k];
-
-          if (
-            i + x >= 0 &&
-            j + y >= 0 &&
-            i + x <= RESOLUTION - 1 &&
-            j + y <= RESOLUTION - 1
-          ) {
-            const { content } = result[i + x][j + y];
-            if (content !== "bomb") {
-              result[i + x][j + y] = {
-                ...result[i + x][j + y],
-                content: content !== null ? content + 1 : 1,
-              };
-            }
-          }
-        }
-
-        cellWithBoms[currentCell.id] = false;
-      }
-    }
-  }
-
-  if (result[cell.y][cell.x].content === null) {
-    return renderEmptyIsland(result, cell.y, cell.x);
-  }
-
-  return result;
-};
-
-const gameOver = (cells: CellT[][]): CellT[][] => {
-  const result: CellT[][] = [...cells];
-  for (let i = 0; i < RESOLUTION; i++) {
-    for (let j = 0; j < RESOLUTION; j++) {
-      if (result[i][j].content === "bomb") {
-        result[i][j] = {
-          ...result[i][j],
-          visible: true,
-        };
-      }
-    }
-  }
-
-  return result;
-};
-
-const renderEmptyIsland = (cells: CellT[][], y: number, x: number) => {
-  const checkNearCells = (y: number, x: number) => {
-    cells[y][x] = { ...cells[y][x], visible: true };
-
-    for (let k = 1; k < 9; k++) {
-      const [newX, newY] = LOOK_AROUND_MAP[k];
-
-      if (
-        x + newX >= 0 &&
-        y + newY >= 0 &&
-        x + newX <= RESOLUTION - 1 &&
-        y + newY <= RESOLUTION - 1
-      ) {
-        const { content, visible } = cells[y + newY][x + newX];
-        if (!visible) {
-          if (typeof content === "number") {
-            cells[y + newY][x + newX] = {
-              ...cells[y + newY][x + newX],
-              visible: true,
-            };
-          }
-
-          if (content === null) {
-            cells[y + newY][x + newX] = {
-              ...cells[y + newY][x + newX],
-              visible: true,
-            };
-
-            checkNearCells(y + newY, x + newX);
-          }
-        }
-      }
-    }
-  };
-
-  checkNearCells(y, x);
-
-  return cells;
-};
-
-const winCheck = (cells: CellT[][]): boolean => {
-  for (let i = 0; i < RESOLUTION; i++) {
-    for (let j = 0; j < RESOLUTION; j++) {
-      if (cells[i][j].visible === false) {
-        return false;
-      }
-    }
-  }
-  return true;
-};
-
-/////////
+export const RESOLUTION = 16;
 
 const Home: NextPage = () => {
   const [cells, setCells] = useState<CellT[][]>(getInitialCells());
   const [flags, setFlags] = useState<number>(RESOLUTION * 2);
   const [score, setScore] = useState<number>(0);
+
   const [isGameFinished, setIsGameFinished] = useState(false);
   const [isFirstTurn, setIsFirstTurn] = useState(true);
+  const [isMultiPlayer, setIsMultiPlayer] = useState(false);
+
+  const [isOnlineTokenModal, setIsOnlineTokenModal] = useState(false);
+  const [isInviteModal, setIsInviteModal] = useState(false);
+
+  const [inviterToken, setInviterToken] = useState('')
+  const [gameToken, setGameToken] = useState("");
+  const [isMyTurn, setIsMyTurn] = useState(false);
+  const [globalSocket, setGlobalSocket] =
+    useState<Socket<DefaultEventsMap, DefaultEventsMap>>();
+
+  useEffect(() => {
+    const getSocket = async () => {
+      const socket = await InitSocketConnection();
+
+      socket.on("invite", (token) => {
+        if (!isMultiPlayer) {
+          setIsInviteModal(true);
+          setInviterToken(token);
+        }
+      });
+
+      socket.on("gameStart", (roomToken) => {
+        setIsMyTurn(true);
+        startOnlineGame(roomToken);
+      });
+
+      socket.on("first turn", ({cells, gameToken} : {cells: CellT[][], gameToken: string}) => {
+        setIsFirstTurn(false);
+        setScore(score + 1);
+        setIsMyTurn(true);
+        setGameToken(gameToken)
+        setCells(cells);
+      });
+
+      socket.on("game turn", ({cells, score, flags, isGameOver} : {cells: CellT[][], score: number, flags: number, isGameOver?: boolean}) => {
+        if (isGameOver) {
+          finishOnlineGame(cells)
+        } else {
+          setCells(cells);
+          setScore(score)
+          setFlags(flags)
+          setIsMyTurn(true);
+        }
+      });
+
+      setGlobalSocket(socket);
+    };
+
+    getSocket();
+  }, []);
 
   useEffect(() => {
     if (winCheck(cells)) {
@@ -218,22 +86,68 @@ const Home: NextPage = () => {
     }
   }, [cells]);
 
+  const finishOnlineGame = (cells: CellT[][]) => {
+    globalSocket?.emit("finish game", {gameToken});
+
+    setIsMultiPlayer(false)
+    setCells(gameOver(cells));
+    setIsGameFinished(true);
+    setScore(0);
+    setGameToken('')
+    setIsMyTurn(false)
+  }
+
+  const startOnlineGame = (token: string) => {
+    setGameToken(token);
+    setIsMultiPlayer(true);
+    setIsInviteModal(false);
+    setIsOnlineTokenModal(false);
+  };
+
+  const onAccept = () => {
+    globalSocket?.emit(
+      "accept invite",
+      inviterToken,
+      ({ token }: { token: string }) => token && startOnlineGame(token)
+    );
+  };
+
+  const onDecline = () => {
+    setGameToken("");
+    setIsInviteModal(false);
+  };
+
+  const handleConnect = (inputValue: string) => {
+    if (globalSocket) {
+      globalSocket.emit("connect to player", inputValue);
+    }
+  };
+
   const handlePlaceFlag = (
     cell: CellT,
     event: React.MouseEvent<HTMLButtonElement, MouseEvent>
   ) => {
     event.preventDefault();
+    if (isFirstTurn) return
+
     const { x, y, flaged } = cell;
     let newCells = [...cells];
+    let newFlags = flags
 
     if (flaged) {
       newCells[y][x] = { ...newCells[y][x], flaged: false, visible: false };
-      setFlags(flags + 1);
+      newFlags = flags + 1;
     } else if (!flaged && flags > 0) {
       newCells[y][x] = { ...newCells[y][x], flaged: true, visible: true };
-      setFlags(flags - 1);
+      newFlags = flags - 1;
     }
 
+    if (isMultiPlayer) {
+      globalSocket?.emit("game turn", {cells: newCells, score, flags: newFlags, gameToken})
+      setIsMyTurn(false)
+    }
+
+    setFlags(newFlags)
     setCells(newCells);
   };
 
@@ -246,6 +160,12 @@ const Home: NextPage = () => {
       setCells(setGameField(cell, cells));
       setIsFirstTurn(false);
       setScore(score + 1);
+     
+      //// mutli
+      if (isMultiPlayer) {
+        globalSocket?.emit("first turn", {gameToken, cells})
+        setIsMyTurn(false)
+      }
       return;
     }
 
@@ -253,6 +173,13 @@ const Home: NextPage = () => {
       setCells(gameOver(cells));
       setIsGameFinished(true);
       setScore(0);
+
+      //// mutli
+      if (isMultiPlayer) {
+        globalSocket?.emit("game turn", {cells, score, flags, gameToken, isGameOver: true})
+        finishOnlineGame(cells)
+      }
+      return
     }
 
     const { x, y, content } = cell;
@@ -262,6 +189,12 @@ const Home: NextPage = () => {
       newCells = renderEmptyIsland(newCells, y, x);
     } else {
       newCells[y][x] = { ...newCells[y][x], visible: true };
+    }
+
+    //// mutli
+    if (isMultiPlayer) {
+      globalSocket?.emit("game turn", {cells: newCells, gameToken, score: score + 1, flags})
+      setIsMyTurn(false);
     }
 
     setScore(score + 1);
@@ -286,8 +219,17 @@ const Home: NextPage = () => {
 
       <Main>
         <MenuBlock>
+          {isMyTurn && <h2>Your turn</h2>}
           <h2>Score: {score}</h2>
-          <button onClick={handleRestart}>restart</button>
+          <Stack spacing={1}>
+            <button onClick={handleRestart}>Restart</button>
+            <button
+              onClick={() => setIsOnlineTokenModal(true)}
+              disabled={isMultiPlayer}
+            >
+              Play online
+            </button>
+          </Stack>
           <h2>Flags: {flags}</h2>
         </MenuBlock>
 
@@ -296,7 +238,7 @@ const Home: NextPage = () => {
             row.map((cell) => (
               <Cell
                 visible={cell.visible}
-                disabled={cell.visible}
+                disabled={cell.visible || (!isMyTurn &&  isMultiPlayer)}
                 onClick={() => handleClick(cell)}
                 onContextMenu={(event) => handlePlaceFlag(cell, event)}
                 key={cell.id}
@@ -307,6 +249,21 @@ const Home: NextPage = () => {
           )}
         </GameContainer>
       </Main>
+      {isOnlineTokenModal && (
+        <GetOnlineTokenModal
+          isOpen={isOnlineTokenModal}
+          onClose={setIsOnlineTokenModal}
+          handleConnect={handleConnect}
+        />
+      )}
+      {isInviteModal && (
+        <StartOnlineGameModal
+          isOpen={isInviteModal}
+          onClose={setIsInviteModal}
+          onAccept={onAccept}
+          onDecline={onDecline}
+        />
+      )}
     </>
   );
 };
